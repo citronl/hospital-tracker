@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Health Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161c26; --surface2: #1e2736; --surface3: #263044;
+    --border: #2a3649; --accent: #5ecfb1; --accent-dim: rgba(94,207,177,0.12);
+    --text: #e8edf5; --text2: #8a9ab5; --text3: #5a6a82;
+    --red: #e05c6a; --red-dim: rgba(224,92,106,0.12);
+    --amber: #f0a847; --amber-dim: rgba(240,168,71,0.12);
+    --blue: #7b9ef0; --blue-dim: rgba(123,158,240,0.12);
+    --purple: #c084fc;
+    --radius: 14px; --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; max-width: 480px; margin: 0 auto; padding-bottom: 80px; }
+  header { padding: 24px 20px 14px; border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 1.3rem; font-weight: 600; color: var(--accent); }
+  header .sub { font-size: 0.78rem; color: var(--text3); margin-top: 2px; }
+  .sync-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--text3); margin-top: 5px; }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); transition: background 0.3s; }
+  .sync-dot.ok { background: var(--accent); } .sync-dot.err { background: var(--red); }
+  .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { flex: 1; min-width: 55px; padding: 12px 2px; background: none; border: none; color: var(--text3); font-family: 'DM Sans', sans-serif; font-size: 0.62rem; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-pane { display: none; padding: 20px; } .tab-pane.active { display: block; }
+  .section-title { font-size: 0.85rem; font-weight: 600; color: var(--text2); margin-bottom: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .card .section-title { margin-bottom: 12px; }
+  .graph-wrap { position: relative; width: 100%; height: 180px; }
+
+  /* MED */
+  .med-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; transition: border-color 0.3s; }
+  .med-card.ready { border-color: var(--accent); }
+  .med-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .med-name { font-size: 1rem; font-weight: 600; }
+  .med-meta { display: flex; align-items: center; gap: 6px; }
+  .med-interval { font-size: 0.72rem; color: var(--text3); background: var(--surface2); padding: 3px 8px; border-radius: 20px; }
+  .med-delete-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 0.8rem; padding: 3px 6px; border-radius: 4px; }
+  .med-delete-btn:hover { color: var(--red); background: var(--red-dim); }
+  .med-status { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .status-badge { font-size: 0.75rem; font-weight: 500; padding: 4px 10px; border-radius: 20px; }
+  .status-badge.ready   { background: var(--accent-dim); color: var(--accent); }
+  .status-badge.waiting { background: var(--amber-dim);  color: var(--amber); }
+  .status-badge.never   { background: var(--surface2);   color: var(--text2); }
+  .countdown { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--text2); }
+  .last-taken { font-size: 0.72rem; color: var(--text3); margin-bottom: 12px; line-height: 1.6; }
+  .strength-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .strength-btn { flex: 1; padding: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .strength-btn.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .take-btn { width: 100%; padding: 10px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #0d1117; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+  .take-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .take-btn.disabled { background: var(--surface3); color: var(--text3); cursor: not-allowed; transform: none; }
+
+  /* TOP-UP */
+  .topup-btn { width: 100%; padding: 10px; background: none; border: 1px solid var(--amber); border-radius: var(--radius-sm); color: var(--amber); font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background 0.15s; }
+  .topup-btn:hover { background: var(--amber-dim); }
+  .topup-btn.disabled { border-color: var(--border); color: var(--text3); cursor: not-allowed; background: none; }
+  .topup-info { font-size: 0.72rem; color: var(--text3); margin-top: 5px; text-align: center; }
+
+  .backdate-toggle { background: none; border: none; color: var(--text3); font-family: 'DM Sans', sans-serif; font-size: 0.72rem; cursor: pointer; margin-top: 8px; text-decoration: underline; text-decoration-style: dotted; display: block; }
+  .backdate-row { display: none; gap: 8px; margin-top: 8px; align-items: center; }
+  .backdate-row.show { display: flex; }
+  .backdate-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.8rem; padding: 7px 10px; outline: none; }
+  .backdate-row input:focus { border-color: var(--accent); }
+  .backdate-row button { padding: 7px 12px; background: var(--surface3); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-family: 'DM Sans', sans-serif; font-size: 0.8rem; cursor: pointer; }
+  .add-med-card { background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; }
+  .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; padding: 9px 12px; outline: none; margin-bottom: 8px; }
+  .form-input::placeholder { color: var(--text3); }
+  .form-input:focus { border-color: var(--accent); }
+  .field-label { font-size: 0.75rem; color: var(--text3); display: block; margin-bottom: 5px; }
+  .field-group { margin-bottom: 10px; }
+  .add-med-btn { width: 100%; padding: 10px; background: var(--accent-dim); border: 1px solid var(--accent); border-radius: var(--radius-sm); color: var(--accent); font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+  .add-med-btn:hover { background: rgba(94,207,177,0.2); }
+
+  /* FOOD */
+  .food-input-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .food-input-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.88rem; padding: 10px 14px; outline: none; }
+  .food-input-row input::placeholder { color: var(--text3); }
+  .food-input-row input:focus { border-color: var(--accent); }
+  .food-input-row button { padding: 10px 16px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #0d1117; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+  .food-entry { display: flex; align-items: center; padding: 10px 14px; background: var(--surface2); border-radius: var(--radius-sm); margin-bottom: 6px; gap: 8px; }
+  .food-entry-text { flex: 1; font-size: 0.88rem; }
+  .food-entry-time { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--text3); flex-shrink: 0; }
+  .food-entry-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 1.1rem; line-height: 1; flex-shrink: 0; }
+  .food-entry-del:hover { color: var(--red); }
+  .wishlist-btn { width: 100%; padding: 11px; background: none; border: 1px solid var(--amber); border-radius: var(--radius-sm); color: var(--amber); font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 16px; transition: background 0.15s; }
+  .wishlist-btn:hover { background: var(--amber-dim); }
+  .wishlist-count { background: var(--amber); color: #0d1117; border-radius: 20px; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; min-width: 20px; text-align: center; }
+  .wishlist-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 300; align-items: flex-end; justify-content: center; }
+  .wishlist-overlay.show { display: flex; }
+  .wishlist-drawer { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; padding: 24px 20px 36px; width: 100%; max-width: 480px; max-height: 80vh; display: flex; flex-direction: column; }
+  .wishlist-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .wishlist-header h3 { font-size: 1rem; font-weight: 600; }
+  .wishlist-close { background: none; border: none; color: var(--text3); font-size: 1.3rem; cursor: pointer; line-height: 1; padding: 2px 6px; }
+  .wishlist-subtext { font-size: 0.78rem; color: var(--text3); margin-bottom: 16px; }
+  .wishlist-input-row { display: flex; gap: 8px; margin-bottom: 14px; flex-shrink: 0; }
+  .wishlist-input-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.88rem; padding: 10px 14px; outline: none; }
+  .wishlist-input-row input::placeholder { color: var(--text3); }
+  .wishlist-input-row input:focus { border-color: var(--amber); }
+  .wishlist-input-row button { padding: 10px 16px; background: var(--amber); border: none; border-radius: var(--radius-sm); color: #0d1117; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+  .wishlist-items { overflow-y: auto; flex: 1; }
+  .wishlist-item { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: var(--surface2); border-radius: var(--radius-sm); margin-bottom: 6px; }
+  .wishlist-item-text { flex: 1; font-size: 0.88rem; }
+  .wishlist-item-added { font-size: 0.7rem; color: var(--text3); font-family: 'DM Mono', monospace; flex-shrink: 0; }
+  .wishlist-item-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 1.1rem; line-height: 1; flex-shrink: 0; }
+  .wishlist-item-del:hover { color: var(--red); }
+  .wishlist-empty { text-align: center; color: var(--text3); font-size: 0.85rem; padding: 30px 20px; }
+
+  /* WALK */
+  .walk-progress { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 14px; }
+  .walk-progress-label { font-size: 0.82rem; color: var(--text2); }
+  .walk-progress-count { font-family: 'DM Mono', monospace; font-size: 1rem; color: var(--accent); font-weight: 500; margin-left: 16px; }
+  .progress-bar-wrap { background: var(--surface2); border-radius: 4px; height: 4px; margin-top: 8px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.4s ease; }
+  .walk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .walk-slot { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; user-select: none; }
+  .walk-slot.done { background: var(--accent-dim); border-color: var(--accent); }
+  .walk-checkbox { width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .walk-slot.done .walk-checkbox { background: var(--accent); border-color: var(--accent); }
+  .walk-checkmark { color: #0d1117; font-size: 0.7rem; font-weight: 700; display: none; }
+  .walk-slot.done .walk-checkmark { display: block; }
+  .walk-time { font-family: 'DM Mono', monospace; font-size: 0.88rem; color: var(--text2); }
+  .walk-slot.done .walk-time { color: var(--accent); }
+
+  /* WEIGHT */
+  .stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+  .stat-val { font-family: 'DM Mono', monospace; font-size: 1.1rem; font-weight: 500; color: var(--accent); }
+  .stat-val.muted { color: var(--blue); }
+  .stat-label { font-size: 0.68rem; color: var(--text3); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .weight-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .weight-row input[type="number"] { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Mono', monospace; font-size: 1rem; padding: 10px 14px; outline: none; }
+  .weight-row input[type="number"]::placeholder { color: var(--text3); }
+  .weight-row input[type="number"]:focus { border-color: var(--accent); }
+  .weight-row input[type="date"] { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; padding: 10px 14px; outline: none; }
+  .weight-row input[type="date"]:focus { border-color: var(--accent); }
+  .weight-row button { padding: 10px 18px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #0d1117; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .past-toggle { background: none; border: none; color: var(--text3); font-family: 'DM Sans', sans-serif; font-size: 0.72rem; cursor: pointer; text-decoration: underline; text-decoration-style: dotted; display: block; margin-top: 4px; }
+  .past-section { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .past-section.show { display: block; }
+  .weight-entry { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; }
+  .weight-entry-date { font-size: 0.82rem; color: var(--text2); }
+  .weight-entry-right { display: flex; align-items: center; gap: 10px; }
+  .weight-entry-val { font-family: 'DM Mono', monospace; font-size: 0.95rem; color: var(--accent); font-weight: 500; }
+  .weight-entry-diff { font-family: 'DM Mono', monospace; font-size: 0.75rem; padding: 2px 7px; border-radius: 20px; }
+  .weight-entry-diff.down { background: var(--blue-dim); color: var(--blue); }
+  .weight-entry-diff.up   { background: var(--amber-dim); color: var(--amber); }
+  .weight-entry-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 1rem; }
+  .weight-entry-del:hover { color: var(--red); }
+
+  /* PAIN */
+  .score-row { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-bottom: 4px; }
+  .score-btn { padding: 7px 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface2); color: var(--text2); font-family: 'DM Mono', monospace; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .score-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .score-btn.half { font-size: 0.65rem; color: var(--text3); }
+  .score-btn.half:hover { border-color: var(--accent); color: var(--accent); }
+  .score-btn.sel-low  { background: rgba(94,207,177,0.2);  border-color: #5ecfb1; color: #5ecfb1; }
+  .score-btn.sel-mid  { background: rgba(240,168,71,0.2);  border-color: #f0a847; color: #f0a847; }
+  .score-btn.sel-high { background: rgba(224,140,80,0.2);  border-color: #e08c50; color: #e08c50; }
+  .score-btn.sel-max  { background: rgba(224,92,106,0.2);  border-color: #e05c6a; color: #e05c6a; }
+  .score-row-label { font-size: 0.65rem; color: var(--text3); margin-bottom: 3px; }
+  .pain-scale-label { display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--text3); margin: 4px 0 10px; }
+  .pain-comment-wrap { margin-bottom: 8px; }
+  .pain-comment-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; padding: 9px 12px; outline: none; }
+  .pain-comment-input::placeholder { color: var(--text3); }
+  .pain-comment-input:focus { border-color: var(--accent); }
+  .pain-log-btn { width: 100%; padding: 11px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #0d1117; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+  .pain-log-btn:disabled { background: var(--surface3); color: var(--text3); cursor: not-allowed; }
+  .pain-slot { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; }
+  .pain-slot.logged { background: var(--surface); }
+  .pain-slot-time { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--text3); flex-shrink: 0; min-width: 44px; }
+  .pain-slot-score { font-family: 'DM Mono', monospace; font-size: 1rem; font-weight: 600; margin: 0 6px; }
+  .pain-slot-comment { font-size: 0.75rem; color: var(--text3); flex: 1; margin: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pain-slot-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 0.9rem; flex-shrink: 0; }
+  .pain-slot-del:hover { color: var(--red); }
+  .pain-slot-empty { font-size: 0.78rem; color: var(--text3); font-style: italic; flex: 1; }
+  .pain-slot-log-btn { font-size: 0.72rem; background: var(--surface3); border: 1px solid var(--border); border-radius: 6px; color: var(--text3); padding: 3px 8px; cursor: pointer; font-family: 'DM Sans', sans-serif; flex-shrink: 0; }
+  .pain-slot-log-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .day-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .day-pill { padding: 5px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 500; font-family: 'DM Sans', sans-serif; border: 1px solid var(--border); background: var(--surface2); color: var(--text3); cursor: pointer; transition: all 0.15s; }
+  .day-pill.active { border-color: var(--pill-c, var(--accent)); background: color-mix(in srgb, var(--pill-c, var(--accent)) 15%, transparent); color: var(--pill-c, var(--accent)); }
+  .pain-subtabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .pain-subtab { flex: 1; padding: 8px 4px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text3); font-family: 'DM Sans', sans-serif; font-size: 0.75rem; font-weight: 500; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .pain-subtab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .pain-subpane { display: none; } .pain-subpane.active { display: block; }
+
+  .history-date { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); margin: 16px 0 8px; font-weight: 600; }
+  .history-date:first-child { margin-top: 0; }
+  .history-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 0.82rem; }
+  .history-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .history-dot.med    { background: var(--accent); } .history-dot.food { background: var(--amber); }
+  .history-dot.walk   { background: var(--blue);   } .history-dot.weight { background: var(--purple); }
+  .history-dot.pain   { background: var(--red);    }
+  .history-item-content { flex: 1; } .history-item-name { font-weight: 500; }
+  .history-item-detail { color: var(--text3); font-size: 0.75rem; margin-top: 2px; }
+  .history-time { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--text3); flex-shrink: 0; }
+  .empty-state { text-align: center; color: var(--text3); font-size: 0.85rem; padding: 40px 20px; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; padding: 24px 20px 32px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; }
+  .modal h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+  .modal p { font-size: 0.82rem; color: var(--text3); margin-bottom: 14px; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 10px; }
+  .modal-cancel { flex: 1; padding: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text2); font-family: 'DM Sans', sans-serif; font-size: 0.88rem; cursor: pointer; }
+  .modal-confirm { flex: 1; padding: 12px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #0d1117; font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+  .modal-confirm.danger { background: var(--red); color: #fff; }
+  .modal-comment-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; padding: 9px 12px; outline: none; }
+  .modal-comment-input::placeholder { color: var(--text3); }
+  .modal-comment-input:focus { border-color: var(--accent); }
+
+  .loading-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 12px; }
+  .loading-overlay p { color: var(--text3); font-size: 0.85rem; }
+  .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading"><div class="spinner"></div><p>Connecting to Firebase…</p></div>
+
+<header>
+  <h1>🏥 My Health Tracker</h1>
+  <p class="sub" id="header-date">Loading…</p>
+  <div class="sync-badge"><div class="sync-dot" id="sync-dot"></div><span id="sync-label">Connecting…</span></div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="meds"    onclick="switchTab(this)">💊 Meds</button>
+  <button class="tab-btn"        data-tab="food"    onclick="switchTab(this)">🥤 Food</button>
+  <button class="tab-btn"        data-tab="walk"    onclick="switchTab(this)">🚶 Walk</button>
+  <button class="tab-btn"        data-tab="weight"  onclick="switchTab(this)">⚖️ Weight</button>
+  <button class="tab-btn"        data-tab="pain"    onclick="switchTab(this)">🩹 Pain</button>
+  <button class="tab-btn"        data-tab="history" onclick="switchTab(this)">📋 History</button>
+</div>
+
+<!-- MEDS -->
+<div id="tab-meds" class="tab-pane active">
+  <div id="med-list"></div>
+  <div class="add-med-card">
+    <div class="section-title">＋ Add a medication</div>
+    <div class="field-group"><label class="field-label">Medication name</label><input class="form-input" type="text" id="new-med-name" placeholder="e.g. Tramadol"></div>
+    <div class="field-group"><label class="field-label">Hours between doses</label><input class="form-input" type="number" id="new-med-hours" placeholder="e.g. 6" min="1" max="72"></div>
+    <div class="field-group"><label class="field-label">Dose strengths — optional (comma separated)</label><input class="form-input" type="text" id="new-med-strengths" placeholder="Leave blank if only one strength"></div>
+    <button class="add-med-btn" onclick="addMed()">Add Medication</button>
+  </div>
+</div>
+
+<!-- FOOD -->
+<div id="tab-food" class="tab-pane">
+  <p class="section-title">Today's food & drink log</p>
+  <div class="food-input-row">
+    <input type="text" id="food-input" placeholder="e.g. half a Fortisip, 2 crackers…" onkeydown="if(event.key==='Enter')addFood()">
+    <button onclick="addFood()">Add</button>
+  </div>
+  <div id="food-list"></div>
+  <button class="wishlist-btn" onclick="openWishlist()">🍽️ Food ideas & wishlist <span class="wishlist-count" id="wishlist-count">0</span></button>
+</div>
+
+<!-- WALK -->
+<div id="tab-walk" class="tab-pane">
+  <p class="section-title">Hourly walks — 9:30am to 9:30pm</p>
+  <div class="walk-progress">
+    <div style="flex:1"><div class="walk-progress-label">Walks completed today</div><div class="progress-bar-wrap"><div class="progress-bar-fill" id="walk-bar" style="width:0%"></div></div></div>
+    <div class="walk-progress-count" id="walk-count">0 / 13</div>
+  </div>
+  <div class="walk-grid" id="walk-grid"></div>
+</div>
+
+<!-- WEIGHT -->
+<div id="tab-weight" class="tab-pane">
+  <div class="stat-grid-3">
+    <div class="stat-box"><div class="stat-val" id="ws-current">—</div><div class="stat-label">Current</div></div>
+    <div class="stat-box"><div class="stat-val" id="ws-highest">—</div><div class="stat-label">Highest</div></div>
+    <div class="stat-box"><div class="stat-val muted" id="ws-lost">—</div><div class="stat-label">Lost</div></div>
+  </div>
+  <div class="card">
+    <p class="section-title">Log weight</p>
+    <div class="weight-row"><input type="number" id="weight-input" placeholder="e.g. 62.4" step="0.1" min="20" max="300"><button onclick="logWeight(false)">Save today</button></div>
+    <button class="past-toggle" onclick="document.getElementById('past-weight-section').classList.toggle('show')">Add a past date instead</button>
+    <div class="past-section" id="past-weight-section">
+      <label class="field-label" style="margin-top:10px">Select a date</label>
+      <div class="weight-row"><input type="date" id="weight-past-date"><button onclick="logWeight(true)">Save date</button></div>
+      <p style="font-size:0.72rem;color:var(--text3)">Uses the weight entered above.</p>
+    </div>
+  </div>
+  <div class="card" id="weight-graph-card"><div class="section-title">Trend</div><div class="graph-wrap"><canvas id="weight-chart"></canvas></div></div>
+  <p class="section-title">History</p>
+  <div id="weight-history-list"></div>
+</div>
+
+<!-- PAIN -->
+<div id="tab-pain" class="tab-pane">
+  <div class="pain-subtabs">
+    <button class="pain-subtab active" data-sub="today"   onclick="switchPainSub(this)">Today</button>
+    <button class="pain-subtab"        data-sub="compare" onclick="switchPainSub(this)">Compare days</button>
+    <button class="pain-subtab"        data-sub="log"     onclick="switchPainSub(this)">Log</button>
+  </div>
+  <div class="pain-subpane active" id="pain-sub-today">
+    <div class="stat-grid-3">
+      <div class="stat-box"><div class="stat-val" id="ps-avg" style="color:var(--amber)">—</div><div class="stat-label">Avg today</div></div>
+      <div class="stat-box"><div class="stat-val" id="ps-low" style="color:var(--accent)">—</div><div class="stat-label">Lowest</div></div>
+      <div class="stat-box"><div class="stat-val" id="ps-high" style="color:var(--red)">—</div><div class="stat-label">Highest</div></div>
+    </div>
+    <div class="card" id="pain-today-chart-card"><div class="section-title">Pain throughout today</div><div class="graph-wrap"><canvas id="pain-today-chart"></canvas></div></div>
+    <p class="section-title">Today's hourly slots</p>
+    <div id="pain-slots"></div>
+  </div>
+  <div class="pain-subpane" id="pain-sub-compare">
+    <div class="card"><div class="section-title">Daily average pain</div><div class="graph-wrap"><canvas id="pain-avg-chart"></canvas></div></div>
+    <div class="card">
+      <div class="section-title">Compare days</div>
+      <p style="font-size:0.75rem;color:var(--text3);margin-bottom:10px">Tap days to overlay their pain levels on one chart</p>
+      <div class="day-toggles" id="day-toggles"></div>
+      <div class="graph-wrap" style="height:200px"><canvas id="pain-compare-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Day detail</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <select id="drilldown-select" class="form-input" style="margin-bottom:0;flex:1"></select>
+        <button class="add-med-btn" style="flex-shrink:0;width:auto;padding:9px 14px" onclick="renderDrilldown()">View</button>
+      </div>
+      <div id="drilldown-content"><p class="empty-state" style="padding:20px">Select a day above to see all check-ins</p></div>
+    </div>
+  </div>
+  <div class="pain-subpane" id="pain-sub-log">
+    <div class="card">
+      <div class="section-title" id="pain-quick-title">Log pain now</div>
+      <p style="font-size:0.75rem;color:var(--text3);margin-bottom:12px">Top row: whole numbers. Bottom row: halves. 1 = no pain, 10 = worst.</p>
+      <div id="pain-score-grid"></div>
+      <div class="pain-scale-label"><span>No pain</span><span>Worst</span></div>
+      <div class="pain-comment-wrap"><input type="text" class="pain-comment-input" id="pain-comment" placeholder="Optional comment (e.g. sharp, dull, nausea)"></div>
+      <button class="pain-log-btn" id="pain-log-btn" onclick="logPainNow()" disabled>Select a score above to log</button>
+    </div>
+    <div class="add-med-card">
+      <div class="section-title">＋ Add extra / backdated check-in</div>
+      <p style="font-size:0.75rem;color:var(--text3);margin-bottom:12px">Log pain at a specific time or add an extra entry for any hour</p>
+      <label class="field-label">Time</label>
+      <input type="time" id="pain-extra-time" class="form-input">
+      <label class="field-label">Pain score</label>
+      <div id="pain-extra-score-grid"></div>
+      <div class="pain-scale-label"><span>No pain</span><span>Worst</span></div>
+      <label class="field-label">Comment (optional)</label>
+      <input type="text" id="pain-extra-comment" class="form-input" placeholder="e.g. after physio, woke in pain">
+      <button class="add-med-btn" onclick="logPainExtra()">Add check-in</button>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div id="tab-history" class="tab-pane">
+  <p class="section-title">Full history</p>
+  <div id="history-list"></div>
+</div>
+
+<!-- WISHLIST DRAWER -->
+<div class="wishlist-overlay" id="wishlist-overlay" onclick="if(event.target===this) closeWishlist()">
+  <div class="wishlist-drawer">
+    <div class="wishlist-header">
+      <h3>🍽️ Food ideas & wishlist</h3>
+      <button class="wishlist-close" onclick="closeWishlist()">×</button>
+    </div>
+    <p class="wishlist-subtext">Jot down anything that sounds appealing — share with your dietician!</p>
+    <div class="wishlist-input-row">
+      <input type="text" id="wishlist-input" placeholder="e.g. toast, soup, yoghurt…" onkeydown="if(event.key==='Enter')addWishlistItem()">
+      <button onclick="addWishlistItem()">Add</button>
+    </div>
+    <div class="wishlist-items" id="wishlist-items"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Confirm</h3>
+    <p id="modal-body"></p>
+    <div id="modal-extra"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" id="modal-ok" onclick="confirmAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey:"AIzaSyDR50ZDdjmN5qgihvbY508HY55NcTmpKfc",
+  authDomain:"hospital-tracker-f1faf.firebaseapp.com",
+  projectId:"hospital-tracker-f1faf",
+  storageBucket:"hospital-tracker-f1faf.firebasestorage.app",
+  messagingSenderId:"412384717901",
+  appId:"1:412384717901:web:dc7c0361439c2b992a0004"
+});
+const db = getFirestore(app);
+const DATA_REF     = doc(db,'tracker','data');
+const CONFIG_REF   = doc(db,'tracker','config');
+const WEIGHT_REF   = doc(db,'tracker','weight');
+const PAIN_REF     = doc(db,'tracker','pain');
+const WISHLIST_REF = doc(db,'tracker','wishlist');
+
+const WALK_TIMES  = ['09:30','10:30','11:30','12:30','13:30','14:30','15:30','16:30','17:30','18:30','19:30','20:30','21:30'];
+const PAIN_HOURS  = Array.from({length:24}, (_,i) => String(i).padStart(2,'0') + ':00');
+const DAY_COLORS  = ['#5ecfb1','#7b9ef0','#f0a847','#c084fc','#e05c6a','#5bc0de','#f4a261','#a8dadc'];
+const WHOLE_SCORES = [1,2,3,4,5,6,7,8,9,10];
+const HALF_SCORES  = [1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5];
+
+// Oxycodone top-up config
+const TOPUP_MED_ID        = 'oxycodone';
+const TOPUP_STRENGTH      = '2.5mg';
+const TOPUP_AFTER_HOURS   = 1;
+
+const DEFAULT_MEDS = [
+  {id:'cyclizine',     name:'Cyclizine',     hours:8},
+  {id:'chlorphenamine',name:'Chlorphenamine', hours:4},
+  {id:'paracetamol',   name:'Paracetamol',   hours:4},
+  {id:'buscopan',      name:'Buscopan',      hours:6},
+  {id:'stemetil',      name:'Stemetil',      hours:8},
+  {id:'oxycodone',     name:'Oxycodone',     hours:4, strengths:['2.5mg','5mg']}
+];
+
+let state={}, meds=[], weightLog={}, painLog={}, wishlist=[], selStr={}, pendingAction=null;
+let wChart=null, painTodayChart=null, painAvgChart=null, painCmpChart=null;
+let selPainScore=null, selExtraScore=null, activeDays=new Set();
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+const todayKey = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+};
+const pad = n => String(n).padStart(2,'0');
+const fmt = ts => ts ? new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
+const fmtDateShortFromTs = ts => new Date(ts).toLocaleDateString([],{day:'numeric',month:'short'});
+const fmtDate = k => {
+  if(!k) return '';
+  const [y,m,d] = k.split('-').map(Number);
+  const date = new Date(y,m-1,d);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yest  = new Date(today); yest.setDate(today.getDate()-1);
+  date.setHours(0,0,0,0);
+  if(date.getTime()===today.getTime()) return 'Today';
+  if(date.getTime()===yest.getTime())  return 'Yesterday';
+  return date.toLocaleDateString([],{weekday:'short',day:'numeric',month:'short'});
+};
+const fmtDateShort = k => {
+  const [y,m,d] = k.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString([],{day:'numeric',month:'short'});
+};
+const cdown = (ts, h) => {
+  if(!ts) return null;
+  const diff = (ts + h*3600000) - Date.now();
+  if(diff<=0) return 'Ready';
+  const hh = Math.floor(diff/3600000);
+  const mm = Math.floor((diff%3600000)/60000);
+  const ss = Math.floor((diff%60000)/1000);
+  return pad(hh) + ':' + pad(mm) + ':' + pad(ss);
+};
+const getToday    = () => { const k=todayKey(); if(!state[k]) state[k]={meds:{},food:[],walks:{}}; return state[k]; };
+const getTodayPain= () => { const k=todayKey(); if(!painLog[k]) painLog[k]=[]; return painLog[k]; };
+const painColor   = n => n<=3 ? '#5ecfb1' : n<=6 ? '#f0a847' : n<=8 ? '#e08c50' : '#e05c6a';
+const selClass    = v => v<=3 ? 'sel-low' : v<=6 ? 'sel-mid' : v<=8 ? 'sel-high' : 'sel-max';
+const dayAvg      = entries => (!entries||!entries.length) ? null : entries.reduce((a,b)=>a+b.score,0)/entries.length;
+const fmtScore    = v => Number.isInteger(v) ? String(v) : v.toFixed(1);
+
+// ── sync ──────────────────────────────────────────────────────────────────────
+const setSync = s => {
+  const dot=document.getElementById('sync-dot'), lbl=document.getElementById('sync-label');
+  if(s==='ok'){  dot.className='sync-dot ok';  lbl.textContent='Synced';     }
+  if(s==='err'){ dot.className='sync-dot err'; lbl.textContent='Sync error'; }
+  if(s==='load'){dot.className='sync-dot';     lbl.textContent='Loading…';   }
+};
+const saveData    = async () => { try{ await setDoc(DATA_REF,state);        setSync('ok'); }catch{ setSync('err'); } };
+const saveCfg     = async () => { try{ await setDoc(CONFIG_REF,{meds});     setSync('ok'); }catch{ setSync('err'); } };
+const saveWeight  = async () => { try{ await setDoc(WEIGHT_REF,weightLog);  setSync('ok'); }catch{ setSync('err'); } };
+const savePain    = async () => { try{ await setDoc(PAIN_REF,painLog);      setSync('ok'); }catch{ setSync('err'); } };
+const saveWishlist= async () => { try{ await setDoc(WISHLIST_REF,{items:wishlist}); setSync('ok'); }catch{ setSync('err'); } };
+
+// ── modal ─────────────────────────────────────────────────────────────────────
+const openModal = (title, body, onOk, danger=false, extraHtml='') => {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  document.getElementById('modal-extra').innerHTML   = extraHtml;
+  document.getElementById('modal-ok').className = 'modal-confirm' + (danger?' danger':'');
+  pendingAction = onOk;
+  document.getElementById('modal').classList.add('show');
+};
+window.closeModal    = () => { pendingAction=null; document.getElementById('modal').classList.remove('show'); document.getElementById('modal-extra').innerHTML=''; };
+window.confirmAction = () => { if(pendingAction) pendingAction(); window.closeModal(); };
+document.getElementById('modal').addEventListener('click', e => { if(e.target===document.getElementById('modal')) window.closeModal(); });
+
+// ── wishlist ──────────────────────────────────────────────────────────────────
+window.openWishlist      = () => { document.getElementById('wishlist-overlay').classList.add('show'); setTimeout(()=>document.getElementById('wishlist-input').focus(),100); };
+window.closeWishlist     = () => { document.getElementById('wishlist-overlay').classList.remove('show'); };
+window.addWishlistItem   = async () => { const inp=document.getElementById('wishlist-input'); const text=inp.value.trim(); if(!text) return; wishlist.push({text,ts:Date.now()}); inp.value=''; await saveWishlist(); renderWishlist(); };
+window.deleteWishlistItem= async idx => { wishlist.splice(idx,1); await saveWishlist(); renderWishlist(); };
+function renderWishlist() {
+  document.getElementById('wishlist-count').textContent = wishlist.length;
+  const c = document.getElementById('wishlist-items'); c.innerHTML='';
+  if(!wishlist.length){ c.innerHTML='<div class="wishlist-empty">Nothing on the list yet.<br>Add anything that sounds good!</div>'; return; }
+  [...wishlist].reverse().forEach((item,ri) => {
+    const idx = wishlist.length-1-ri;
+    const el = document.createElement('div'); el.className='wishlist-item';
+    el.innerHTML = `<span class="wishlist-item-text">${item.text}</span><span class="wishlist-item-added">${fmtDateShortFromTs(item.ts)}</span><button class="wishlist-item-del" onclick="deleteWishlistItem(${idx})">×</button>`;
+    c.appendChild(el);
+  });
+}
+
+// ── pain score grids ──────────────────────────────────────────────────────────
+function buildScoreGrid(id, getVal, setVal) {
+  const wrap = document.getElementById(id); if(!wrap) return; wrap.innerHTML='';
+  const r1lbl=document.createElement('div'); r1lbl.className='score-row-label'; r1lbl.textContent='Whole numbers'; wrap.appendChild(r1lbl);
+  const r1=document.createElement('div'); r1.className='score-row';
+  WHOLE_SCORES.forEach(v => {
+    const btn=document.createElement('button'); btn.className='score-btn'; btn.textContent=v;
+    if(getVal()===v) btn.classList.add(selClass(v));
+    btn.onclick=()=>{ setVal(v); buildScoreGrid(id,getVal,setVal); updatePainLogBtn(); };
+    r1.appendChild(btn);
+  });
+  wrap.appendChild(r1);
+  const r2lbl=document.createElement('div'); r2lbl.className='score-row-label'; r2lbl.style.marginTop='6px'; r2lbl.textContent='Halves'; wrap.appendChild(r2lbl);
+  const r2=document.createElement('div'); r2.className='score-row';
+  HALF_SCORES.forEach(v => {
+    const btn=document.createElement('button'); btn.className='score-btn half'; btn.textContent=v.toFixed(1);
+    if(getVal()===v) btn.classList.add(selClass(v));
+    btn.onclick=()=>{ setVal(v); buildScoreGrid(id,getVal,setVal); updatePainLogBtn(); };
+    r2.appendChild(btn);
+  });
+  r2.appendChild(document.createElement('div')); // filler
+  wrap.appendChild(r2);
+}
+
+function buildModalScoreGrid(id, getVal, setVal) {
+  const wrap=document.getElementById(id); if(!wrap) return; wrap.innerHTML='';
+  const r1=document.createElement('div'); r1.className='score-row';
+  WHOLE_SCORES.forEach(v => { const btn=document.createElement('button'); btn.className='score-btn'; btn.textContent=v; if(getVal()===v) btn.classList.add(selClass(v)); btn.onclick=()=>{ setVal(v); buildModalScoreGrid(id,getVal,setVal); }; r1.appendChild(btn); });
+  wrap.appendChild(r1);
+  const r2=document.createElement('div'); r2.className='score-row'; r2.style.marginTop='4px';
+  HALF_SCORES.forEach(v => { const btn=document.createElement('button'); btn.className='score-btn half'; btn.textContent=v.toFixed(1); if(getVal()===v) btn.classList.add(selClass(v)); btn.onclick=()=>{ setVal(v); buildModalScoreGrid(id,getVal,setVal); }; r2.appendChild(btn); });
+  r2.appendChild(document.createElement('div'));
+  wrap.appendChild(r2);
+}
+
+function updatePainLogBtn() {
+  const btn = document.getElementById('pain-log-btn');
+  if(selPainScore != null){ btn.disabled=false; btn.textContent='Log pain score ' + fmtScore(selPainScore); }
+  else{ btn.disabled=true; btn.textContent='Select a score above to log'; }
+}
+
+// ── meds ──────────────────────────────────────────────────────────────────────
+window.openTake = (medId, strength, bdVal) => {
+  const med = meds.find(m => m.id===medId);
+  let ts = Date.now();
+  if(bdVal){ const [hh,mm]=bdVal.split(':').map(Number); const d=new Date(); d.setHours(hh,mm,0,0); ts=d.getTime(); }
+  openModal(
+    'Record ' + med.name + (strength ? ' '+strength : ''),
+    bdVal ? 'Record dose taken at '+bdVal+' today?' : 'Record dose taken now ('+fmt(ts)+')?',
+    async () => {
+      const t = getToday();
+      t.meds[medId] = { ts, strength: strength||null, topupTs: null };
+      await saveData(); renderMeds(); renderHistory();
+    }
+  );
+};
+
+window.openTopUp = (medId, bdVal) => {
+  let ts = Date.now();
+  if(bdVal){ const [hh,mm]=bdVal.split(':').map(Number); const d=new Date(); d.setHours(hh,mm,0,0); ts=d.getTime(); }
+  openModal(
+    'Record Oxycodone 2.5mg top-up',
+    bdVal ? 'Record top-up at '+bdVal+'? This resets the 4-hour countdown.' : 'Record top-up now ('+fmt(ts)+')? This resets the 4-hour countdown.',
+    async () => {
+      const t = getToday();
+      if(t.meds[medId]){ t.meds[medId].topupTs = ts; }
+      await saveData(); renderMeds(); renderHistory();
+    }
+  );
+};
+
+window.deleteMed = medId => {
+  const med = meds.find(m => m.id===medId);
+  openModal('Remove '+med.name+'?', 'This removes it from the list. Your history is kept.',
+    async () => { meds=meds.filter(m=>m.id!==medId); await saveCfg(); renderMeds(); }, true);
+};
+
+window.addMed = async () => {
+  const name    = document.getElementById('new-med-name').value.trim();
+  const hours   = parseInt(document.getElementById('new-med-hours').value);
+  const strRaw  = document.getElementById('new-med-strengths').value.trim();
+  if(!name){ alert('Please enter a medication name.'); return; }
+  if(!hours||hours<1){ alert('Please enter a valid number of hours.'); return; }
+  const strengths = strRaw ? strRaw.split(',').map(s=>s.trim()).filter(Boolean) : null;
+  const id = name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'') + '-' + Date.now();
+  const newMed = {id, name, hours};
+  if(strengths&&strengths.length) newMed.strengths = strengths;
+  meds.push(newMed); await saveCfg();
+  document.getElementById('new-med-name').value='';
+  document.getElementById('new-med-hours').value='';
+  document.getElementById('new-med-strengths').value='';
+  renderMeds();
+};
+
+function renderMeds() {
+  const today = getToday();
+  const container = document.getElementById('med-list');
+  container.innerHTML = '';
+
+  meds.forEach(med => {
+    const rec = today.meds[med.id];
+    const ts  = rec ? rec.ts : null;
+
+    // Use top-up time for countdown if present, otherwise original dose time
+    const timerTs = (rec && rec.topupTs) ? rec.topupTs : ts;
+    const cds     = cdown(timerTs, med.hours);
+    const ready   = !timerTs || cds === 'Ready';
+
+    const card = document.createElement('div');
+    card.className = 'med-card ' + (ready ? 'ready' : 'waiting');
+
+    // Header
+    const header = document.createElement('div'); header.className='med-header';
+    header.innerHTML = '<span class="med-name">'+med.name+'</span><div class="med-meta"><span class="med-interval">every '+med.hours+'h</span><button class="med-delete-btn" onclick="deleteMed(\''+med.id+'\')">✕</button></div>';
+    card.appendChild(header);
+
+    // Status row
+    const statusRow = document.createElement('div'); statusRow.className='med-status';
+    const badge = document.createElement('span');
+    badge.className = 'status-badge ' + (timerTs ? (ready?'ready':'waiting') : 'never');
+    badge.textContent = timerTs ? (ready?'Ready':'Waiting') : 'Not yet taken';
+    statusRow.appendChild(badge);
+    if(timerTs && !ready){
+      const cdSpan = document.createElement('span'); cdSpan.className='countdown'; cdSpan.id='cd-'+med.id; cdSpan.textContent=cds;
+      statusRow.appendChild(cdSpan);
+    }
+    card.appendChild(statusRow);
+
+    // Last taken info
+    if(ts){
+      const lt = document.createElement('div'); lt.className='last-taken';
+      let txt = 'Last dose: ' + fmt(ts) + (rec.strength ? ' · '+rec.strength : '');
+      if(rec.topupTs) txt += '\nTop-up: ' + fmt(rec.topupTs) + ' · 2.5mg';
+      lt.textContent = txt;
+      card.appendChild(lt);
+    }
+
+    // Strength selector
+    if(med.strengths){
+      const row = document.createElement('div'); row.className='strength-row';
+      med.strengths.forEach(str => {
+        const btn = document.createElement('button');
+        btn.className = 'strength-btn' + (selStr[med.id]===str ? ' selected' : '');
+        btn.textContent = str;
+        btn.onclick = () => { selStr[med.id]=str; renderMeds(); };
+        row.appendChild(btn);
+      });
+      card.appendChild(row);
+    }
+
+    // Main record button
+    const needsStr = med.strengths && !selStr[med.id];
+    const tb = document.createElement('button');
+    tb.className = 'take-btn' + (needsStr ? ' disabled' : '');
+    tb.textContent = needsStr ? 'Select a strength above' : 'Record ' + med.name;
+    if(!needsStr){
+      tb.onclick = () => {
+        const bi = card.querySelector('.backdate-input');
+        window.openTake(med.id, selStr[med.id]||null, bi&&bi.value ? bi.value : null);
+      };
+    }
+    card.appendChild(tb);
+
+    // ── TOP-UP (Oxycodone 2.5mg only) ────────────────────────────────────────
+    const isTopupCandidate = med.id===TOPUP_MED_ID && ts && rec.strength===TOPUP_STRENGTH && !rec.topupTs;
+    if(isTopupCandidate){
+      const availAt   = ts + TOPUP_AFTER_HOURS * 3600000;
+      const available = Date.now() >= availAt;
+      const waitMins  = Math.ceil((availAt - Date.now()) / 60000);
+
+      const tuBtn = document.createElement('button');
+      tuBtn.className = 'topup-btn' + (available ? '' : ' disabled');
+      tuBtn.id = 'topup-btn-' + med.id;
+      tuBtn.textContent = available ? 'Record 2.5mg top-up' : 'Top-up not yet available';
+
+      if(available){
+        tuBtn.onclick = () => {
+          const bi2 = card.querySelector('.backdate-topup');
+          window.openTopUp(med.id, bi2&&bi2.value ? bi2.value : null);
+        };
+      }
+      card.appendChild(tuBtn);
+
+      // Countdown until available
+      if(!available){
+        const info = document.createElement('div');
+        info.className = 'topup-info';
+        info.id = 'topup-info-' + med.id;
+        info.textContent = 'Available in ~' + waitMins + ' min';
+        card.appendChild(info);
+      }
+
+      // Backdate toggle for top-up
+      const bdTog2 = document.createElement('button');
+      bdTog2.className = 'backdate-toggle';
+      bdTog2.textContent = 'Backdate top-up time?';
+      bdTog2.onclick = () => card.querySelector('.bd-topup-row').classList.toggle('show');
+      card.appendChild(bdTog2);
+
+      const bdRow2 = document.createElement('div');
+      bdRow2.className = 'backdate-row bd-topup-row';
+      bdRow2.innerHTML = '<input type="time" class="backdate-topup"><button onclick="this.parentElement.classList.remove(\'show\')">✕</button>';
+      card.appendChild(bdRow2);
+    }
+
+    // Backdate toggle for main dose
+    const bdTog = document.createElement('button');
+    bdTog.className = 'backdate-toggle';
+    bdTog.textContent = 'Backdate dose time?';
+    bdTog.onclick = () => card.querySelector('.bd-main-row').classList.toggle('show');
+    card.appendChild(bdTog);
+
+    const bdRow = document.createElement('div');
+    bdRow.className = 'backdate-row bd-main-row';
+    bdRow.innerHTML = '<input type="time" class="backdate-input"><button onclick="this.parentElement.classList.remove(\'show\')">✕</button>';
+    card.appendChild(bdRow);
+
+    container.appendChild(card);
+  });
+}
+
+// ── food ──────────────────────────────────────────────────────────────────────
+window.addFood    = async () => { const inp=document.getElementById('food-input'),text=inp.value.trim(); if(!text) return; const t=getToday(); if(!t.food) t.food=[]; t.food.push({text,ts:Date.now()}); inp.value=''; await saveData(); renderFood(); renderHistory(); };
+window.deleteFood = async idx => { const t=getToday(); t.food.splice(idx,1); await saveData(); renderFood(); renderHistory(); };
+function renderFood() {
+  const t=getToday(), list=document.getElementById('food-list'); list.innerHTML='';
+  if(!t.food||!t.food.length){ list.innerHTML='<div class="empty-state" style="padding:20px 0">No entries yet today.</div>'; return; }
+  t.food.forEach((item,i) => { const d=document.createElement('div'); d.className='food-entry'; d.innerHTML='<span class="food-entry-text">'+item.text+'</span><span class="food-entry-time">'+fmt(item.ts)+'</span><button class="food-entry-del" onclick="deleteFood('+i+')">×</button>'; list.appendChild(d); });
+}
+
+// ── walks ─────────────────────────────────────────────────────────────────────
+window.toggleWalk = async time => { const t=getToday(); if(!t.walks) t.walks={}; t.walks[time]=!t.walks[time]; await saveData(); renderWalks(); renderHistory(); };
+function renderWalks() {
+  const t=getToday(), grid=document.getElementById('walk-grid'); grid.innerHTML=''; let done=0;
+  WALK_TIMES.forEach(time => { const isDone=!!(t.walks&&t.walks[time]); if(isDone) done++; const s=document.createElement('div'); s.className='walk-slot'+(isDone?' done':''); s.onclick=()=>window.toggleWalk(time); s.innerHTML='<div class="walk-checkbox"><span class="walk-checkmark">✓</span></div><span class="walk-time">'+time+'</span>'; grid.appendChild(s); });
+  document.getElementById('walk-count').textContent = done + ' / 13';
+  document.getElementById('walk-bar').style.width   = (done/13*100) + '%';
+}
+
+// ── weight ────────────────────────────────────────────────────────────────────
+window.logWeight = async usePast => {
+  const val = parseFloat(document.getElementById('weight-input').value);
+  if(!val||val<20||val>300){ alert('Please enter a valid weight in kg.'); return; }
+  let key;
+  if(usePast){ const dv=document.getElementById('weight-past-date').value; if(!dv){alert('Please select a date.');return;} if(dv>todayKey()){alert("Can't log a future date.");return;} key=dv; }
+  else { key=todayKey(); }
+  const doSave = async () => { weightLog[key]={kg:val,ts:Date.now()}; document.getElementById('weight-input').value=''; document.getElementById('weight-past-date').value=''; document.getElementById('past-weight-section').classList.remove('show'); await saveWeight(); renderWeight(); renderHistory(); };
+  if(weightLog[key]) openModal('Update entry?','You already have '+weightLog[key].kg.toFixed(1)+' kg for '+fmtDate(key)+'. Replace with '+val.toFixed(1)+' kg?',doSave);
+  else await doSave();
+};
+window.deleteWeight = async key => { openModal('Remove this entry?','Delete weight entry for '+fmtDate(key)+'?', async()=>{ delete weightLog[key]; await saveWeight(); renderWeight(); renderHistory(); },true); };
+function renderWeight() {
+  const keys=Object.keys(weightLog).sort();
+  if(keys.length){ const vals=keys.map(k=>weightLog[k].kg),latest=vals[vals.length-1],highest=Math.max(...vals),lost=highest-latest; document.getElementById('ws-current').textContent=latest.toFixed(1)+' kg'; document.getElementById('ws-highest').textContent=highest.toFixed(1)+' kg'; document.getElementById('ws-lost').textContent=lost>0?'-'+lost.toFixed(1)+' kg':'0 kg'; }
+  else { ['ws-current','ws-highest','ws-lost'].forEach(id=>document.getElementById(id).textContent='—'); }
+  const gc=document.getElementById('weight-graph-card');
+  if(keys.length>=2){ gc.style.display=''; const labels=keys.map(fmtDateShort),data=keys.map(k=>weightLog[k].kg),minV=Math.min(...data)-1,maxV=Math.max(...data)+1; if(wChart) wChart.destroy(); const ctx=document.getElementById('weight-chart').getContext('2d'); wChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{data,borderColor:'#5ecfb1',backgroundColor:'rgba(94,207,177,0.08)',borderWidth:2,pointBackgroundColor:'#5ecfb1',pointRadius:4,tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toFixed(1)+' kg'},backgroundColor:'#1e2736',titleColor:'#8a9ab5',bodyColor:'#e8edf5',borderColor:'#2a3649',borderWidth:1}},settings:{x:{ticks:{color:'#5a6a82',font:{size:10}},grid:{color:'#1e2736'}},y:{min:minV,max:maxV,ticks:{color:'#5a6a82',font:{size:10},callback:v=>v.toFixed(1)},grid:{color:'#1e2736'}}},scales:{x:{ticks:{color:'#5a6a82',font:{size:10}},grid:{color:'#1e2736'}},y:{min:minV,max:maxV,ticks:{color:'#5a6a82',font:{size:10},callback:v=>v.toFixed(1)},grid:{color:'#1e2736'}}}}}); }
+  else { gc.style.display='none'; if(wChart){wChart.destroy();wChart=null;} }
+  const list=document.getElementById('weight-history-list'); list.innerHTML='';
+  if(!keys.length){ list.innerHTML='<div class="empty-state">No weight entries yet.</div>'; return; }
+  [...keys].reverse().forEach((k,i,arr) => { const entry=weightLog[k],prevKey=arr[i+1],prevEntry=prevKey?weightLog[prevKey]:null,diff=prevEntry?(entry.kg-prevEntry.kg):null; let dh=''; if(diff!==null){ const sign=diff<0?'':'+',cls=diff<=0?'down':'up'; dh='<span class="weight-entry-diff '+cls+'">'+sign+diff.toFixed(1)+'</span>'; } const el=document.createElement('div'); el.className='weight-entry'; el.innerHTML='<span class="weight-entry-date">'+fmtDate(k)+'</span><div class="weight-entry-right"><span class="weight-entry-val">'+entry.kg.toFixed(1)+' kg</span>'+dh+'<button class="weight-entry-del" onclick="deleteWeight(\''+k+'\')">×</button></div>'; list.appendChild(el); });
+}
+
+// ── pain logging ──────────────────────────────────────────────────────────────
+window.logPainNow = async () => {
+  if(selPainScore==null) return;
+  const comment = document.getElementById('pain-comment').value.trim();
+  const now     = new Date();
+  const slot    = pad(now.getHours()) + ':00';
+  getTodayPain().push({ts:Date.now(), score:selPainScore, comment, slot, extra:false});
+  painLog[todayKey()] = painLog[todayKey()] || [];
+  selPainScore=null; document.getElementById('pain-comment').value='';
+  buildScoreGrid('pain-score-grid', ()=>selPainScore, v=>{selPainScore=v;});
+  updatePainLogBtn();
+  await savePain(); renderPainToday(); renderPainCompare(); renderHistory();
+};
+
+window.logPainExtra = async () => {
+  if(selExtraScore==null){ alert('Please select a pain score.'); return; }
+  const timeVal = document.getElementById('pain-extra-time').value;
+  if(!timeVal){ alert('Please select a time.'); return; }
+  const comment = document.getElementById('pain-extra-comment').value.trim();
+  const [hh,mm] = timeVal.split(':').map(Number);
+  const d = new Date(); d.setHours(hh,mm,0,0);
+  const slot = pad(hh) + ':00';
+  getTodayPain().push({ts:d.getTime(), score:selExtraScore, comment, slot, extra:true});
+  painLog[todayKey()] = painLog[todayKey()] || [];
+  selExtraScore=null; document.getElementById('pain-extra-time').value=''; document.getElementById('pain-extra-comment').value='';
+  buildScoreGrid('pain-extra-score-grid', ()=>selExtraScore, v=>{selExtraScore=v;});
+  await savePain(); renderPainToday(); renderPainCompare(); renderHistory();
+};
+
+window.deletePainEntry = async idx => {
+  openModal('Remove entry?','Delete this pain check-in?', async () => {
+    const today=getTodayPain(); today.splice(idx,1); painLog[todayKey()]=today;
+    await savePain(); renderPainToday(); renderPainCompare(); renderHistory();
+  },true);
+};
+
+window.logPainSlot = slotHour => {
+  let slotScore=null;
+  openModal('Log pain for '+slotHour, 'Select a score for this hour:',
+    async () => {
+      if(slotScore==null){ alert('Please select a score.'); return; }
+      const comment = (document.getElementById('modal-slot-comment')||{}).value||'';
+      const [hh]    = slotHour.split(':').map(Number);
+      const d = new Date(); d.setHours(hh,0,0,0);
+      getTodayPain().push({ts:d.getTime(), score:slotScore, comment:comment.trim(), slot:slotHour, extra:false});
+      painLog[todayKey()] = painLog[todayKey()] || [];
+      await savePain(); renderPainToday(); renderPainCompare(); renderHistory();
+    }, false,
+    '<div id="modal-slot-grid" style="margin-bottom:8px"></div><div class="pain-scale-label"><span>No pain</span><span>Worst</span></div><input type="text" class="modal-comment-input" id="modal-slot-comment" placeholder="Optional comment">'
+  );
+  setTimeout(() => buildModalScoreGrid('modal-slot-grid', ()=>slotScore, v=>{slotScore=v;}), 50);
+};
+
+// ── pain today ────────────────────────────────────────────────────────────────
+function renderPainToday() {
+  const today  = getTodayPain();
+  const sorted = [...today].sort((a,b) => a.ts-b.ts);
+
+  if(sorted.length){
+    const scores = sorted.map(e=>e.score);
+    const avg    = scores.reduce((a,b)=>a+b,0) / scores.length;
+    const low    = Math.min(...scores);
+    const high   = Math.max(...scores);
+    document.getElementById('ps-avg').textContent  = fmtScore(parseFloat(avg.toFixed(2)));
+    document.getElementById('ps-avg').style.color  = painColor(avg);
+    document.getElementById('ps-low').textContent  = fmtScore(low);
+    document.getElementById('ps-low').style.color  = painColor(low);
+    document.getElementById('ps-high').textContent = fmtScore(high);
+    document.getElementById('ps-high').style.color = painColor(high);
+  } else {
+    ['ps-avg','ps-low','ps-high'].forEach(id => { document.getElementById(id).textContent='—'; document.getElementById(id).style.color=''; });
+  }
+
+  const ptc = document.getElementById('pain-today-chart-card');
+  if(sorted.length>=1){
+    ptc.style.display='';
+    if(painTodayChart) painTodayChart.destroy();
+    const ctx = document.getElementById('pain-today-chart').getContext('2d');
+    painTodayChart = new Chart(ctx, {
+      type:'line',
+      data:{labels:sorted.map(e=>fmt(e.ts)), datasets:[{data:sorted.map(e=>e.score), borderColor:'#e05c6a', backgroundColor:'rgba(224,92,106,0.06)', borderWidth:2, pointBackgroundColor:sorted.map(e=>painColor(e.score)), pointRadius:6, tension:0.3, fill:true}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>{const e=sorted[c.dataIndex]; return 'Pain: '+fmtScore(c.parsed.y)+(e.comment?' — '+e.comment:'');}}, backgroundColor:'#1e2736',titleColor:'#8a9ab5',bodyColor:'#e8edf5',borderColor:'#2a3649',borderWidth:1}}, scales:{x:{ticks:{color:'#5a6a82',font:{size:9},maxRotation:45},grid:{color:'#1e2736'}},y:{min:0,max:10,ticks:{color:'#5a6a82',font:{size:10},stepSize:1},grid:{color:'#1e2736'}}}}
+    });
+  } else { ptc.style.display='none'; if(painTodayChart){painTodayChart.destroy();painTodayChart=null;} }
+
+  const now = new Date();
+  document.getElementById('pain-quick-title').textContent = 'Log pain now (' + pad(now.getHours()) + ':00)';
+
+  const wrap = document.getElementById('pain-slots'); wrap.innerHTML='';
+  PAIN_HOURS.forEach(hour => {
+    const entries = today.filter(e => e.slot===hour);
+    const div = document.createElement('div');
+    div.className = 'pain-slot' + (entries.length ? ' logged' : '');
+    const timeEl = '<span class="pain-slot-time">'+hour+'</span>';
+    if(entries.length){
+      const eHtml = entries.map(e => {
+        const gi = today.indexOf(e);
+        const sc = painColor(e.score);
+        return '<div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0"><span class="pain-slot-score" style="color:'+sc+'">'+fmtScore(e.score)+'</span>'+(e.comment?'<span class="pain-slot-comment">'+e.comment+'</span>':'')+'<button class="pain-slot-del" onclick="deletePainEntry('+gi+')">×</button></div>';
+      }).join('');
+      div.innerHTML = timeEl+'<div style="flex:1;display:flex;flex-direction:column;gap:4px">'+eHtml+'</div><button class="pain-slot-log-btn" onclick="logPainSlot(\''+hour+'\')">＋</button>';
+    } else {
+      div.innerHTML = timeEl+'<span class="pain-slot-empty">No entry</span><button class="pain-slot-log-btn" onclick="logPainSlot(\''+hour+'\')">Log</button>';
+    }
+    wrap.appendChild(div);
+  });
+}
+
+// ── pain compare ──────────────────────────────────────────────────────────────
+function renderPainCompare() {
+  const allDays = Object.keys(painLog).filter(k=>painLog[k]&&painLog[k].length).sort();
+  if(painAvgChart) painAvgChart.destroy();
+  if(allDays.length>=1){
+    const labels   = allDays.map(fmtDateShort);
+    const data     = allDays.map(k => { const avg=dayAvg(painLog[k]); return avg?parseFloat(avg.toFixed(2)):null; });
+    const ptColors = data.map(v => v?painColor(v):'transparent');
+    const ctx = document.getElementById('pain-avg-chart').getContext('2d');
+    painAvgChart = new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Avg pain',data,borderColor:'#e05c6a',backgroundColor:'rgba(224,92,106,0.07)',borderWidth:2,pointBackgroundColor:ptColors,pointRadius:5,tension:0.3,fill:true,spanGaps:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'Avg: '+fmtScore(c.parsed.y)},backgroundColor:'#1e2736',titleColor:'#8a9ab5',bodyColor:'#e8edf5',borderColor:'#2a3649',borderWidth:1}},scales:{x:{ticks:{color:'#5a6a82',font:{size:10}},grid:{color:'#1e2736'}},y:{min:0,max:10,ticks:{color:'#5a6a82',font:{size:10},stepSize:1},grid:{color:'#1e2736'}}}}});
+  }
+
+  const tw = document.getElementById('day-toggles'); tw.innerHTML='';
+  allDays.forEach((k,idx) => {
+    const pill = document.createElement('button');
+    const ci   = idx % DAY_COLORS.length;
+    pill.className = 'day-pill' + (activeDays.has(k)?' active':'');
+    pill.style.setProperty('--pill-c', DAY_COLORS[ci]);
+    pill.textContent = fmtDate(k);
+    pill.onclick = () => { if(activeDays.has(k)) activeDays.delete(k); else activeDays.add(k); renderPainCompare(); };
+    tw.appendChild(pill);
+  });
+  if(!allDays.length) tw.innerHTML='<p style="font-size:0.78rem;color:var(--text3)">No pain data yet.</p>';
+
+  if(painCmpChart) painCmpChart.destroy();
+  const active = [...activeDays].sort();
+  const datasets = active.map(k => {
+    const col     = DAY_COLORS[Object.keys(painLog).sort().indexOf(k) % DAY_COLORS.length];
+    const entries = [...(painLog[k]||[])].sort((a,b)=>a.ts-b.ts);
+    const hourMap = {};
+    entries.forEach(e => { const h=e.slot||pad(new Date(e.ts).getHours())+':00'; if(!hourMap[h]) hourMap[h]=[]; hourMap[h].push(e.score); });
+    const data = PAIN_HOURS.map(h => hourMap[h] ? parseFloat((hourMap[h].reduce((a,b)=>a+b,0)/hourMap[h].length).toFixed(2)) : null);
+    return {label:fmtDate(k), data, borderColor:col, backgroundColor:'transparent', borderWidth:2, pointBackgroundColor:col, pointRadius:4, tension:0.3, spanGaps:false};
+  });
+  const ctx = document.getElementById('pain-compare-chart').getContext('2d');
+  painCmpChart = new Chart(ctx,{type:'line',data:{labels:PAIN_HOURS,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:active.length>0,labels:{color:'#8a9ab5',font:{size:10},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtScore(c.parsed.y)},backgroundColor:'#1e2736',titleColor:'#8a9ab5',bodyColor:'#e8edf5',borderColor:'#2a3649',borderWidth:1}},scales:{x:{ticks:{color:'#5a6a82',font:{size:8},maxTicksLimit:8},grid:{color:'#1e2736'}},y:{min:0,max:10,ticks:{color:'#5a6a82',font:{size:10},stepSize:1},grid:{color:'#1e2736'}}}}});
+
+  const sel=document.getElementById('drilldown-select'); const prev=sel.value; sel.innerHTML='';
+  allDays.forEach(k => { const o=document.createElement('option'); o.value=k; o.textContent=fmtDate(k)+' ('+painLog[k].length+' entries)'; sel.appendChild(o); });
+  if(prev&&allDays.includes(prev)) sel.value=prev;
+}
+
+window.renderDrilldown = () => {
+  const k = document.getElementById('drilldown-select').value;
+  const container = document.getElementById('drilldown-content');
+  if(!k||!painLog[k]){ container.innerHTML='<p class="empty-state" style="padding:20px">No data for this day.</p>'; return; }
+  const entries = [...(painLog[k]||[])].sort((a,b)=>a.ts-b.ts);
+  container.innerHTML='';
+  if(entries.length>=2){
+    const wrap=document.createElement('div'); wrap.className='graph-wrap'; wrap.style.height='130px'; wrap.style.marginBottom='12px';
+    const canvas=document.createElement('canvas'); wrap.appendChild(canvas); container.appendChild(wrap);
+    const col=DAY_COLORS[Object.keys(painLog).sort().indexOf(k)%DAY_COLORS.length];
+    new Chart(canvas.getContext('2d'),{type:'line',data:{labels:entries.map(e=>fmt(e.ts)),datasets:[{data:entries.map(e=>e.score),borderColor:col,backgroundColor:'transparent',borderWidth:2,pointBackgroundColor:entries.map(e=>painColor(e.score)),pointRadius:5,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const e=entries[c.dataIndex];return 'Pain '+fmtScore(c.parsed.y)+(e.comment?' — '+e.comment:'');}},backgroundColor:'#1e2736',titleColor:'#8a9ab5',bodyColor:'#e8edf5',borderColor:'#2a3649',borderWidth:1}},scales:{x:{ticks:{color:'#5a6a82',font:{size:9},maxRotation:45},grid:{color:'#1e2736'}},y:{min:0,max:10,ticks:{color:'#5a6a82',font:{size:10},stepSize:1},grid:{color:'#1e2736'}}}}});
+  }
+  entries.forEach(e => { const el=document.createElement('div'); el.className='pain-slot logged'; const sc=painColor(e.score); el.innerHTML='<span class="pain-slot-time">'+fmt(e.ts)+'</span><span class="pain-slot-score" style="color:'+sc+'">'+fmtScore(e.score)+'</span><span class="pain-slot-comment">'+(e.comment||'')+'</span>'; container.appendChild(el); });
+};
+
+window.switchPainSub = btn => {
+  document.querySelectorAll('.pain-subtab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.pain-subpane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pain-sub-'+btn.dataset.sub).classList.add('active');
+  if(btn.dataset.sub==='compare') renderPainCompare();
+  if(btn.dataset.sub==='today')   renderPainToday();
+};
+
+// ── history ───────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('history-list'); list.innerHTML='';
+  const allKeys = new Set([...Object.keys(state), ...Object.keys(weightLog), ...Object.keys(painLog)]);
+  const days    = [...allKeys].sort((a,b)=>b.localeCompare(a));
+  if(!days.length){ list.innerHTML='<div class="empty-state">No history yet.</div>'; return; }
+  days.forEach(key => {
+    const day = state[key]||{}; let evs=[];
+    Object.entries(day.meds||{}).forEach(([id,r]) => {
+      const m = meds.find(x=>x.id===id);
+      evs.push({ts:r.ts, type:'med', name:m?m.name:id, detail:r.strength||''});
+      if(r.topupTs) evs.push({ts:r.topupTs, type:'med', name:(m?m.name:id)+' top-up', detail:'2.5mg top-up'});
+    });
+    (day.food||[]).forEach(f => evs.push({ts:f.ts, type:'food', name:f.text, detail:''}));
+    Object.entries(day.walks||{}).forEach(([t,done]) => { if(done) evs.push({ts:null, type:'walk', name:'Walk at '+t, detail:'Completed', st:t}); });
+    if(weightLog[key]) evs.push({ts:weightLog[key].ts, type:'weight', name:'Weight logged', detail:weightLog[key].kg.toFixed(1)+' kg'});
+    (painLog[key]||[]).forEach(e => evs.push({ts:e.ts, type:'pain', name:'Pain check-in', detail:'Score: '+fmtScore(e.score)+'/10'+(e.comment?' · '+e.comment:'')}));
+    evs.sort((a,b) => (b.ts||0)-(a.ts||0));
+    if(!evs.length) return;
+    const dl=document.createElement('div'); dl.className='history-date'; dl.textContent=fmtDate(key); list.appendChild(dl);
+    evs.forEach(ev => { const el=document.createElement('div'); el.className='history-item'; el.innerHTML='<div class="history-dot '+ev.type+'"></div><div class="history-item-content"><div class="history-item-name">'+ev.name+'</div>'+(ev.detail?'<div class="history-item-detail">'+ev.detail+'</div>':'')+'</div><div class="history-time">'+(ev.ts?fmt(ev.ts):(ev.st||''))+'</div>'; list.appendChild(el); });
+  });
+}
+
+// ── countdown tick ────────────────────────────────────────────────────────────
+setInterval(() => {
+  const t = getToday();
+  meds.forEach(m => {
+    const rec = t.meds[m.id]; if(!rec) return;
+    const timerTs = rec.topupTs || rec.ts;
+    const c = cdown(timerTs, m.hours);
+    const el = document.getElementById('cd-'+m.id);
+    if(el){ if(c==='Ready') renderMeds(); else el.textContent=c; }
+
+    // Unlock top-up button when 1 hour passes after 2.5mg dose
+    if(m.id===TOPUP_MED_ID && rec.ts && rec.strength===TOPUP_STRENGTH && !rec.topupTs){
+      const availAt = rec.ts + TOPUP_AFTER_HOURS*3600000;
+      const tuBtn   = document.getElementById('topup-btn-'+m.id);
+      const tuInfo  = document.getElementById('topup-info-'+m.id);
+      if(Date.now()>=availAt){
+        if(tuBtn && tuBtn.classList.contains('disabled')) renderMeds(); // re-render to unlock
+      } else if(tuInfo){
+        tuInfo.textContent = 'Available in ~' + Math.ceil((availAt-Date.now())/60000) + ' min';
+      }
+    }
+  });
+}, 1000);
+
+// ── tabs ──────────────────────────────────────────────────────────────────────
+window.switchTab = btn => {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  btn.classList.add('active');
+  if(btn.dataset.tab==='history') renderHistory();
+  if(btn.dataset.tab==='weight')  renderWeight();
+  if(btn.dataset.tab==='pain')    renderPainToday();
+};
+
+// ── init ──────────────────────────────────────────────────────────────────────
+setSync('load');
+(async () => {
+  try {
+    const [cfgSnap,dataSnap,wSnap,pSnap,wlSnap] = await Promise.all([
+      getDoc(CONFIG_REF), getDoc(DATA_REF), getDoc(WEIGHT_REF), getDoc(PAIN_REF), getDoc(WISHLIST_REF)
+    ]);
+    meds      = cfgSnap.exists()&&cfgSnap.data().meds ? cfgSnap.data().meds : DEFAULT_MEDS;
+    state     = dataSnap.exists() ? dataSnap.data() : {};
+    weightLog = wSnap.exists()    ? wSnap.data()    : {};
+    painLog   = pSnap.exists()    ? pSnap.data()    : {};
+    wishlist  = wlSnap.exists()&&wlSnap.data().items ? wlSnap.data().items : [];
+    if(!cfgSnap.exists()||!cfgSnap.data().meds) await saveCfg();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('header-date').textContent = new Date().toLocaleDateString([],{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    setSync('ok');
+
+    buildScoreGrid('pain-score-grid',      ()=>selPainScore,  v=>{selPainScore=v;});
+    buildScoreGrid('pain-extra-score-grid',()=>selExtraScore, v=>{selExtraScore=v;});
+    const now = new Date();
+    document.getElementById('pain-extra-time').value = pad(now.getHours()) + ':' + pad(now.getMinutes());
+
+    renderMeds(); renderFood(); renderWalks(); renderWeight(); renderPainToday(); renderWishlist();
+
+    onSnapshot(DATA_REF,     snap=>{ if(snap.exists()){ state=snap.data(); renderMeds(); renderFood(); renderWalks(); if(document.getElementById('tab-history').classList.contains('active')) renderHistory(); } setSync('ok'); });
+    onSnapshot(CONFIG_REF,   snap=>{ if(snap.exists()&&snap.data().meds){ meds=snap.data().meds; renderMeds(); } });
+    onSnapshot(WEIGHT_REF,   snap=>{ if(snap.exists()){ weightLog=snap.data(); if(document.getElementById('tab-weight').classList.contains('active')) renderWeight(); if(document.getElementById('tab-history').classList.contains('active')) renderHistory(); } setSync('ok'); });
+    onSnapshot(PAIN_REF,     snap=>{ if(snap.exists()){ painLog=snap.data(); const pt=document.getElementById('tab-pain'); if(pt.classList.contains('active')){ const sub=document.querySelector('.pain-subtab.active'); if(sub){ if(sub.dataset.sub==='today') renderPainToday(); if(sub.dataset.sub==='compare') renderPainCompare(); } } if(document.getElementById('tab-history').classList.contains('active')) renderHistory(); } setSync('ok'); });
+    onSnapshot(WISHLIST_REF, snap=>{ if(snap.exists()&&snap.data().items){ wishlist=snap.data().items; renderWishlist(); } setSync('ok'); });
+  } catch(e) {
+    console.error(e);
+    document.getElementById('loading').style.display = 'none';
+    setSync('err');
+  }
+})();
+</script>
+</body>
+</html>
