@@ -610,12 +610,12 @@ const DAY_COLORS   = ['#5ecfb1','#7b9ef0','#f0a847','#c084fc','#e05c6a','#5bc0de
 const WHOLE_SCORES = [1,2,3,4,5,6,7,8,9,10];
 const HALF_SCORES  = [1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5];
 const TOPUP_MED_ID      = 'oxycodone';
-const TOPUP_STRENGTH    = '2.5mg';
+const TOPUP_STRENGTHS   = {'2.5mg':'2.5mg', '5mg':'5mg'}; // strength -> top-up amount
 const TOPUP_AFTER_HOURS = 1;
 const DEFAULT_MEDS = [
   {id:'cyclizine',name:'Cyclizine',hours:8},{id:'chlorphenamine',name:'Chlorphenamine',hours:4},
   {id:'paracetamol',name:'Paracetamol',hours:4},{id:'buscopan',name:'Buscopan',hours:6},
-  {id:'stemetil',name:'Stemetil',hours:8},{id:'oxycodone',name:'Oxycodone',hours:4,strengths:['2.5mg','5mg']}
+  {id:'stemetil',name:'Stemetil',hours:8},{id:'oxycodone',name:'Oxycodone',hours:4,strengths:['2.5mg','5mg','10mg']}
 ];
 
 let state={}, meds=[], weightLog={}, painLog={}, wishlist=[], selStr={}, pendingAction=null;
@@ -791,8 +791,8 @@ window.openTake = (medId,strength,bdVal) => {
 window.openTopUp = (medId,bdVal) => {
   let ts=Date.now();
   if(bdVal){const [hh,mm]=bdVal.split(':').map(Number);const d=new Date();d.setHours(hh,mm,0,0);ts=d.getTime();}
-  openModal('Record Oxycodone 2.5mg top-up',bdVal?'Record top-up at '+bdVal+'? Resets the 4-hour countdown.':'Record top-up now ('+fmt(ts)+')? Resets the 4-hour countdown.',
-    async()=>{const t=getDay(viewKey);if(t.meds[medId])t.meds[medId].topupTs=ts;await saveData();renderMeds();});
+  openModal('Record Oxycodone top-up',bdVal?'Record top-up at '+bdVal+'? Resets the 4-hour countdown.':'Record top-up now ('+fmt(ts)+')? Resets the 4-hour countdown.',
+    async()=>{const t=getDay(viewKey);if(t.meds[medId]){const tRec=t.meds[medId];tRec.topupTs=ts;tRec.topupStrength=TOPUP_STRENGTHS[tRec.strength]||null;}await saveData();renderMeds();});
 };
 window.deleteMed = medId => {
   const med=meds.find(m=>m.id===medId);
@@ -859,7 +859,7 @@ function renderMeds() {
       const lines = [];
       if(carried) lines.push('<span class="carried-note">Carried from yesterday</span>');
       lines.push('Last dose: '+fmt(ts)+(rec.strength?' · '+rec.strength:''));
-      if(rec.topupTs) lines.push('Top-up: '+fmt(rec.topupTs)+' · 2.5mg');
+      if(rec.topupTs) lines.push('Top-up: '+fmt(rec.topupTs)+(rec.topupStrength?' · '+rec.topupStrength:''));
       if(!past) {
         const nt = nextAvailTime(timerTs, med.hours);
         if(nt && !ready) lines.push('Next available: <span class="next-time">'+nt+'</span>');
@@ -885,11 +885,12 @@ function renderMeds() {
 
       // Top-up only if today's record exists (not carried) and conditions met
       const todayRec = (state[todayKey()]||{}).meds?.[med.id];
-      const isTopup  = med.id===TOPUP_MED_ID && todayRec && todayRec.strength===TOPUP_STRENGTH && !todayRec.topupTs;
+      const topupAmt = med.id===TOPUP_MED_ID && todayRec ? TOPUP_STRENGTHS[todayRec.strength] : null;
+      const isTopup  = !!topupAmt && !todayRec.topupTs;
       if(isTopup) {
         const availAt=todayRec.ts+TOPUP_AFTER_HOURS*3600000, available=Date.now()>=availAt, wm=Math.ceil((availAt-Date.now())/60000);
         const tuBtn=document.createElement('button');tuBtn.className='topup-btn'+(available?'':' disabled');tuBtn.id='topup-btn-'+med.id;
-        tuBtn.textContent=available?'Record 2.5mg top-up':'Top-up not yet available';
+        tuBtn.textContent=available?'Record '+topupAmt+' top-up':'Top-up not yet available';
         if(available)tuBtn.onclick=()=>{const bi2=card.querySelector('.backdate-topup');window.openTopUp(med.id,bi2&&bi2.value?bi2.value:null);};
         card.appendChild(tuBtn);
         if(!available){const info=document.createElement('div');info.className='topup-info';info.id='topup-info-'+med.id;info.textContent='Available in ~'+wm+' min';card.appendChild(info);}
@@ -1096,7 +1097,7 @@ setInterval(()=>{
 
     // Update topup countdown/unlock
     const todayRec=(state[todayKey()]||{}).meds?.[m.id];
-    if(m.id===TOPUP_MED_ID&&todayRec&&todayRec.strength===TOPUP_STRENGTH&&!todayRec.topupTs){
+    if(m.id===TOPUP_MED_ID&&todayRec&&TOPUP_STRENGTHS[todayRec.strength]&&!todayRec.topupTs){
       const availAt=todayRec.ts+TOPUP_AFTER_HOURS*3600000,tuBtn=document.getElementById('topup-btn-'+m.id),tuInfo=document.getElementById('topup-info-'+m.id);
       if(Date.now()>=availAt){if(tuBtn&&tuBtn.classList.contains('disabled'))renderMeds();}
       else if(tuInfo)tuInfo.textContent='Available in ~'+Math.ceil((availAt-Date.now())/60000)+' min';
@@ -1407,7 +1408,7 @@ window.openMedHist = function(medId) {
     if(rec.topupTs) {
       const topupEntry = document.createElement('div');
       topupEntry.className = 'med-hist-entry';
-      topupEntry.innerHTML = '<span class="med-hist-time">' + fmt(rec.topupTs) + '</span><span class="med-hist-detail">2.5mg top-up</span>';
+      topupEntry.innerHTML = '<span class="med-hist-time">' + fmt(rec.topupTs) + '</span><span class="med-hist-detail">'+(rec.topupStrength||'Top-up')+'</span>';
       content.appendChild(topupEntry);
     }
   });
