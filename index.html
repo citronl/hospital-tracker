@@ -1695,8 +1695,12 @@ window.openMedHist = function(medId) {
       entry.className = 'med-hist-entry';
       const detail = dose.strength || 'Recorded';
       const num = dosesToShow.length > 1 ? (dose.isTopup ? 'Top-up ' : 'Dose ') + (i+1) + ' · ' : (dose.isTopup ? 'Top-up · ' : '');
-      const delDoseBtn = '<button class="med-hist-del" onclick="deleteDose(\''+medId+'\',\''+k+'\','+i+')">×</button>';
-      entry.innerHTML = '<span class="med-hist-time">' + fmt(dose.ts) + '</span><span class="med-hist-detail">' + num + detail + '</span>' + delDoseBtn;
+      entry.innerHTML = '<span class="med-hist-time">' + fmt(dose.ts) + '</span><span class="med-hist-detail">' + num + detail + '</span>';
+      const delDoseBtn = document.createElement('button');
+      delDoseBtn.className = 'med-hist-del';
+      delDoseBtn.textContent = '×';
+      delDoseBtn.onclick = () => window.deleteDose(medId, k, i);
+      entry.appendChild(delDoseBtn);
       content.appendChild(entry);
     });
 
